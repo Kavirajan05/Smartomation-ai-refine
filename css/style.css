@@ -264,6 +264,36 @@ body::after {
     object-fit: contain;
 }
 
+.demo-test-section {
+    padding-top: 120px;
+}
+
+.demo-test-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.demo-test-submit {
+    width: 100%;
+}
+
+.demo-test-note {
+    margin-top: var(--spacing-xl);
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
 /* Inline SVG logo - inherit color for nav/footer */
 .logo .logo-img,
 .logo .logo-img g {
