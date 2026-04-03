@@ -27,6 +27,8 @@ const DEMO_TEST_CONFIG = {
     }
 };
 
+const DEMO_TEST_API_BASE = getApiBase();
+
 document.addEventListener('DOMContentLoaded', () => {
     initDemoTestPage();
 });
@@ -94,10 +96,13 @@ function runDemo(demoId, form) {
     output.classList.remove('active', 'success', 'error');
     output.textContent = '';
 
-    fetch(config.endpoint, state.fetchOptions)
-        .then(response => {
+    const endpoint = resolveEndpoint(config.endpoint);
+
+    fetch(endpoint, state.fetchOptions)
+        .then(async response => {
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                const detail = await extractErrorDetail(response);
+                throw new Error(`HTTP ${response.status}${detail ? ` - ${detail}` : ''}`);
             }
             return response.json();
         })
@@ -107,7 +112,8 @@ function runDemo(demoId, form) {
         .catch(error => {
             displayResult(output, {
                 error: 'Failed to run automation endpoint.',
-                details: error.message
+                details: error.message,
+                endpoint
             }, false);
         })
         .finally(() => {
@@ -200,7 +206,14 @@ function displayResult(outputElement, data, isSuccess) {
     outputElement.classList.add(isSuccess ? 'success' : 'error');
 
     if (!isSuccess) {
-        outputElement.innerHTML = `<strong>Error:</strong> ${escapeHtml(data.error || 'Unknown error')}`;
+        const detailsHtml = data.details
+            ? `<div style="margin-top:8px;font-size:0.95rem;">${escapeHtml(data.details)}</div>`
+            : '';
+        const endpointHtml = data.endpoint
+            ? `<div style="margin-top:8px;font-size:0.85rem;opacity:0.9;">Endpoint: ${escapeHtml(data.endpoint)}</div>`
+            : '';
+
+        outputElement.innerHTML = `<strong>Error:</strong> ${escapeHtml(data.error || 'Unknown error')}${detailsHtml}${endpointHtml}`;
         return;
     }
 
@@ -210,6 +223,42 @@ function displayResult(outputElement, data, isSuccess) {
 
 function showError(message) {
     alert(message);
+}
+
+function getApiBase() {
+    const metaBase = document
+        .querySelector('meta[name="demo-test-api-base"]')
+        ?.getAttribute('content')
+        ?.trim();
+
+    const windowBase = typeof window.DEMO_TEST_API_BASE === 'string'
+        ? window.DEMO_TEST_API_BASE.trim()
+        : '';
+
+    const base = metaBase || windowBase || '';
+    return base.endsWith('/') ? base.slice(0, -1) : base;
+}
+
+function resolveEndpoint(path) {
+    return DEMO_TEST_API_BASE ? `${DEMO_TEST_API_BASE}${path}` : path;
+}
+
+async function extractErrorDetail(response) {
+    try {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            const payload = await response.json();
+            if (payload && typeof payload === 'object') {
+                return payload.detail || payload.error || JSON.stringify(payload);
+            }
+            return String(payload);
+        }
+
+        const text = await response.text();
+        return text.trim();
+    } catch (_error) {
+        return '';
+    }
 }
 
 function escapeHtml(value) {
