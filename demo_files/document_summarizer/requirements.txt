@@ -2,7 +2,7 @@ fastapi
 uvicorn[standard]
 python-multipart
 pydantic-settings
-pymupdf
+pypdf
 groq
 openai
 python-dotenv
