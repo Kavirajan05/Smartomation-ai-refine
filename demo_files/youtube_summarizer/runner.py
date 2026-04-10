@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / '.env')
 
 from services.summarizer import generate_summary
+from services.email import build_summary_html
 from services.youtube import extract_video_id, fetch_transcript
 
 
@@ -44,6 +45,7 @@ async def main() -> None:
 
     transcript = fetch_transcript(video_id)
     summary = generate_summary(transcript)
+    email_body = build_summary_html(summary)
 
     result = {
         'status': 'success',
@@ -52,8 +54,8 @@ async def main() -> None:
         'email': email,
         'summary': summary,
         'email_subject': 'Your YouTube Video Summary',
-        'email_format': 'plain',
-        'email_body': summary,
+        'email_format': 'html',
+        'email_body': email_body,
     }
 
     _emit(result)

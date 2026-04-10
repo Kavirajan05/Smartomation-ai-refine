@@ -110,8 +110,10 @@ function runDemo(demoId, form) {
             displayResult(output, data, true);
         })
         .catch(error => {
+            const isNetworkError = error && error.name === 'TypeError';
+            const errorMessage = getFriendlyAutomationError(isNetworkError, error.message, endpoint);
             displayResult(output, {
-                error: 'Failed to run automation endpoint.',
+                error: errorMessage,
                 details: error.message,
                 endpoint
             }, false);
@@ -261,6 +263,31 @@ function showError(message) {
     alert(message);
 }
 
+function getFriendlyAutomationError(isNetworkError, details, endpoint) {
+    if (isNetworkError) {
+        return 'Automation service is unreachable right now. Please try again shortly.';
+    }
+
+    const text = String(details || '').toLowerCase();
+    if (text.includes('http 404')) {
+        return 'Automation backend is not deployed at the configured API URL.';
+    }
+
+    if (text.includes('http 502') || text.includes('http 503') || text.includes('http 504')) {
+        return 'Automation backend is temporarily unavailable. Please retry in a minute.';
+    }
+
+    if (text.includes('failed to fetch')) {
+        return 'Automation service is unreachable right now. Please try again shortly.';
+    }
+
+    if (endpoint && (endpoint.includes('/api/demo-test/') || endpoint.includes('/api/health'))) {
+        return 'Automation endpoint failed. Please verify backend service status.';
+    }
+
+    return 'Failed to run automation endpoint.';
+}
+
 function getApiBase() {
     const metaBase = document
         .querySelector('meta[name="demo-test-api-base"]')
@@ -271,8 +298,23 @@ function getApiBase() {
         ? window.DEMO_TEST_API_BASE.trim()
         : '';
 
-    const base = metaBase || windowBase || '';
-    return base.endsWith('/') ? base.slice(0, -1) : base;
+    const configuredBase = metaBase || windowBase || '';
+    const hostname = window.location.hostname.toLowerCase();
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+    // Ignore localhost API base when page runs on a different machine/domain.
+    const baseLooksLocal = configuredBase.includes('127.0.0.1') || configuredBase.includes('localhost');
+    if (configuredBase && !(baseLooksLocal && !isLocalHost)) {
+        return configuredBase.endsWith('/') ? configuredBase.slice(0, -1) : configuredBase;
+    }
+
+    // Local default for development when backend runs on laptop.
+    if (isLocalHost) {
+        return 'http://127.0.0.1:8000';
+    }
+
+    // In deployed environments, use same-origin path unless explicitly configured.
+    return '';
 }
 
 function resolveEndpoint(path) {
